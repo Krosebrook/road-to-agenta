@@ -44,6 +44,51 @@ const Tooltip = ({ text }: { text: string }) => {
   );
 };
 
+const ToolUsage = ({ trace }: { trace: string[] }) => {
+  const toolLogs = trace.filter(log => log.startsWith('[Tool]'));
+  if (toolLogs.length === 0) return null;
+
+  const tools: { call: string; result: string | null }[] = [];
+  for (let i = 0; i < toolLogs.length; i++) {
+    const log = toolLogs[i];
+    if (log.includes('Calling') || log.includes('Querying')) {
+      const nextLog = toolLogs[i + 1];
+      tools.push({
+        call: log.replace('[Tool] ', ''),
+        result: nextLog && nextLog.includes('Success') ? nextLog.replace('[Tool] Success: ', '') : null
+      });
+      if (nextLog && nextLog.includes('Success')) i++;
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 mt-3 w-full">
+      {tools.map((tool, idx) => (
+        <motion.div 
+          key={idx} 
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="flex items-center gap-3 p-3 rounded-xl bg-white border border-[var(--color-ink)]/10 shadow-sm overflow-hidden"
+        >
+          <div className="w-8 h-8 rounded-lg bg-[var(--color-ink)]/5 flex items-center justify-center flex-shrink-0">
+            <Wrench size={16} className="text-[var(--color-ink)]/60" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-ink)]/40 mb-0.5">Tool Execution</div>
+            <div className="text-xs font-mono font-bold truncate text-[var(--color-ink)]">{tool.call}</div>
+            {tool.result && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <CheckCircle2 size={12} className="text-green-500" />
+                <div className="text-[10px] text-green-600 font-medium truncate">{tool.result}</div>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+};
+
 const PROMPT_TEMPLATES = [
   {
     id: 'react',
@@ -540,6 +585,7 @@ export default function Sandbox() {
                     </div>
                     <div className="p-4 rounded-2xl bg-[var(--color-paper)] text-[var(--color-ink)] rounded-bl-sm border border-[var(--color-ink)]/5 w-full">
                       <pre className="leading-relaxed whitespace-pre-wrap font-sans">{msg.content}</pre>
+                      {msg.trace && <ToolUsage trace={msg.trace} />}
                     </div>
                   </div>
                   
@@ -579,6 +625,7 @@ export default function Sandbox() {
                       </div>
                       <div className="p-4 rounded-2xl bg-[var(--color-paper)] text-[var(--color-ink)] border border-[var(--color-ink)]/10 h-full">
                         <pre className="leading-relaxed whitespace-pre-wrap font-sans text-sm">{msg.responses.a.content}</pre>
+                        <ToolUsage trace={msg.responses.a.trace} />
                       </div>
                       <div className="bg-[var(--color-ink)] text-[var(--color-paper)] p-3 rounded-xl font-mono text-[10px] space-y-1 shadow-inner">
                         {msg.responses.a.trace.map((log, idx) => (
@@ -597,6 +644,7 @@ export default function Sandbox() {
                       </div>
                       <div className="p-4 rounded-2xl bg-[var(--color-paper)] text-[var(--color-ink)] border border-[var(--color-ink)]/10 h-full">
                         <pre className="leading-relaxed whitespace-pre-wrap font-sans text-sm">{msg.responses.b.content}</pre>
+                        <ToolUsage trace={msg.responses.b.trace} />
                       </div>
                       <div className="bg-[var(--color-ink)] text-[var(--color-paper)] p-3 rounded-xl font-mono text-[10px] space-y-1 shadow-inner">
                         {msg.responses.b.trace.map((log, idx) => (
